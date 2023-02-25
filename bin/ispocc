@@ -67,66 +67,51 @@ class Reporter does ISP::Server::Reporter {
 
     has %!statistics;
 
+                   Node Name: DFS2K16-18
+                        Type: Bkup
+              Filespace Name: \\dfs2k16-18\e$
+                        FSID: 2
+           Storage Pool Name: DFS_DC
+             Number of Files: 2,175,589
+Physical Space Occupied (MB): -
+ Logical Space Occupied (MB): 1,663,675.75
+
     method process-rows (@sessions) {
         my Str      $node-name;                                             #                   Node Name: NNNNNNNN18
         my Str      $type;                                                  #                        Type: Bkup
-        my Str      $filespace-name;                                        #                        FSID: 1
-        my Str      $wait-time;                                             #           Storage Pool Name: NNN_DC
-        my Str      $bytes-sent;                                            #             Number of Files: 2,512,740
-        my Str      $bytes-received;                                        #Physical Space Occupied (MB): -
-        my Str      $session-type;                                          # Logical Space Occupied (MB): 1,955,623.38
+        my Str      $filespace-name;                                        #              Filespace Name: \\NNNNNNNN18\e$
+        my Str      $fsid;                                                  #                        FSID: 2
+        my Str      $storage-pool-name;                                     #           Storage Pool Name: NNN_DC
+        my Str      $number-of-files;                                       #             Number of Files: 2,512,740
+        my Str      $physical;                                              #Physical Space Occupied (MB): -
+        my Str      $logical;                                               # Logical Space Occupied (MB): 1,955,623.38
 
         my $row;
         for @sessions -> $session {
-            $client-name                    = Nil;  $client-name            = $session{'Client Name'}.Str               if $session{'Client Name'};
-            if self.client-name {
-                next unless self.client-name.fc eq $client-name.fc;
-            }
-            $session-number                 = Nil;  $session-number         = $session{'Sess Number'}.Str               if $session{'Sess Number'};
-            $communication-method           = Nil;  $communication-method   = $session{'Comm. Method'}.Str              if $session{'Comm. Method'};
-            $session-state                  = Nil;  $session-state          = $session{'Sess State'}.Str                if $session{'Sess State'};
-            $wait-time                      = Nil;  $wait-time              = $session{'Wait Time'}.Str                 if $session{'Wait Time'};
-            $bytes-sent                     = Nil;  $bytes-sent             = $session{'Bytes Sent'}.Str                if $session{'Bytes Sent'};
-            $bytes-received                 = Nil;  $bytes-received         = $session{'Bytes Recvd'}.Str               if $session{'Bytes Recvd'};
-            $session-type                   = Nil;  $session-type           = $session{'Sess Type'}.Str                 if $session{'Sess Type'};
-            $platform                       = Nil;  $platform               = $session{'Platform'}.Str                  if $session{'Platform'};
-            $media-access-status            = Nil;  $media-access-status    = $session{'Media Access Status'}.Str       if $session{'Media Access Status'};
-            $user-name                      = Nil;  $user-name              = $session{'User Name'}.Str                 if $session{'User Name'};
-            $date-time-first-data-sent      = Nil;
-            if $session{'Date/Time First Data Sent'} && $session{'Date/Time First Data Sent'} ~~ /<date-time-regex>/ {
-                $date-time-first-data-sent  = DateTime.new(
-                                                            :month($<date-time-regex><month>),
-                                                            :day($<date-time-regex><day-of-month>),
-                                                            :year($<date-time-regex><year> < 100 ?? +$<date-time-regex><year> + 2000 !! +$<date-time-regex><year>),
-                                                            :hour($<date-time-regex><hour>),
-                                                            :minute($<date-time-regex><minute>),
-                                                            :second($<date-time-regex><second>),
-                                                          );
-            }
-            $proxy-by-storage-agent         = Nil;  $proxy-by-storage-agent = $session{'Proxy By Storage Agent'}.Str    if $session{'Proxy By Storage Agent'};
-            $actions                        = Nil;  $actions                = $session{'Actions'}.Str                   if $session{'Actions'};
-            $failover-mode                  = Nil;  $failover-mode          = $session{'Failover Mode'}.Str             if $session{'Failover Mode'};
-            %!statistics{$session-number}   = ISP-Sessions-statistics.new   unless %!statistics{$session-number}:exists;
-            %!statistics{$session-number}.bytes-sent(:$bytes-sent);
-            %!statistics{$session-number}.bytes-received(:$bytes-received);
+            $node-name          = Nil;  $node-name          = $session{'Node Name'}.Str                     if $session{'Node Name'};
+            $type               = Nil;  $type               = $session{'Type'}.Str                          if $session{'Type'};
+            $filespace-name     = Nil;  $filespace-name     = $session{'Filespace Name'}.Str                if $session{'Filespace Name'};
+            $fsid               = Nil;  $fsid               = $session{'FSID'}.Str                          if $session{'FSID'};
+            $storage-pool-name  = Nil;  $storage-pool-name  = $session{'Storage Pool Name'}.Str             if $session{'Storage Pool Name'};
+            $number-of-files    = Nil;  $number-of-files    = $session{'Number of Files'}.Str               if $session{'Number of Files'};
+            $physical           = Nil;  $physical           = $session{'Physical Space Occupied (MB)'}.Str  if $session{'Physical Space Occupied (MB)'};
+            $logical            = Nil;  $logical            = $session{'Logical Space Occupied (MB)'}.Str   if $session{'Logical Space Occupied (MB)'};
+            %!statistics{$node-name}    = ISP-Sessions-statistics.new   unless %!statistics{$node-name}:exists;
+            %!statistics{$node-name}.number-of-files(:$number-of-files);
+            %!statistics{$node-name}.physical(:$physical);
+            %!statistics{$node-name}.logical(:$logical);
             $row                            = Array.new;
-            $row.push:                      $session-number;
-            $row.push:                      $communication-method;
-            $row.push:                      $session-state;
-            $row.push:                      $wait-time;
-            $row.push:                      %!statistics{$session-number}.bytes-to-unit(%!statistics{$session-number}.bytes-sent);
-            $row.push:                      %!statistics{$session-number}.bytes-to-unit(%!statistics{$session-number}.bytes-sent-delta);
-            $row.push:                      %!statistics{$session-number}.bytes-to-unit(%!statistics{$session-number}.bytes-received);
-            $row.push:                      %!statistics{$session-number}.bytes-to-unit(%!statistics{$session-number}.bytes-received-delta);
-            $row.push:                      $session-type;
-            $row.push:                      $platform;
-            $row.push:                      $client-name;
-            $row.push:                      $media-access-status            if self.detailed;
-            $row.push:                      $user-name                      if self.detailed;
-            $row.push:                      $date-time-first-data-sent.Str  if self.detailed;
-            $row.push:                      $proxy-by-storage-agent         if self.detailed;
-            $row.push:                      $actions                        if self.detailed;
-            $row.push:                      $failover-mode                  if self.detailed;
+            $row.push:                      $node-name;
+            $row.push:                      $type;
+            $row.push:                      $filespace-name;
+            $row.push:                      $fsid;
+            $row.push:                      $storage-pool-name;
+            $row.push:                      $number-of-files;
+            $row.push:                      %!statistics{$node-name}.bytes-to-unit(%!statistics{$node-name}.number-of-files-delta);
+            $row.push:                      $physical;
+            $row.push:                      %!statistics{$node-name}.bytes-to-unit(%!statistics{$node-name}.physical-delta);
+            $row.push:                      $logical;
+            $row.push:                      %!statistics{$node-name}.bytes-to-unit(%!statistics{$node-name}.logical-delta);
             self.table.add-row:             $row;
         }
     }
