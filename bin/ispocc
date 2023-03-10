@@ -2,40 +2,40 @@
 
 use ISP::Server::Reporter;
 
+constant \K                     = 1024;
+constant \M                     = K * 1024;
+constant \G                     = M * 1024;
+constant \T                     = G * 1024;
+constant \P                     = T * 1024;
+
+sub to-bytes (Str:D $num-unit) {
+    my $no-commas               = $num-unit.comb.grep(none /','/).join;
+    if $no-commas ~~ / ^ (\d+ '.'* \d*) \s* (\w*) $ / {
+        my $real                = $0.Str.comb.grep(/ \d | '.' /).join;
+        my $unit                = $1.Str with $1;
+        given $unit {
+            when 'K'            { return $real * K }
+            when 'M'            { return $real * M }
+            when 'G'            { return $real * G }
+            when 'T'            { return $real * T }
+            when 'P'            { return $real * P }
+            default             { return $real;    }
+        }
+    }
+}
+
+sub bytes-to-unit (Real:D $real) {
+    given $real.abs {
+        when $_ >= P            { return ($real / P).fmt("%.1f P"); }
+        when $_ >= T            { return ($real / T).fmt("%.1f T"); }
+        when $_ >= G            { return ($real / G).fmt("%.1f G"); }
+        when $_ >= M            { return ($real / M).fmt("%.1f M"); }
+        when $_ >= K            { return ($real / K).fmt("%.1f K"); }
+        default                 { return $real;                     }
+    }
+}
+
 class ISP-Node-Occupancy-statistics {
-
-    constant \K                     = 1024;
-    constant \M                     = K * 1024;
-    constant \G                     = M * 1024;
-    constant \T                     = G * 1024;
-    constant \P                     = T * 1024;
-
-    method to-bytes (Str:D $num-unit) {
-        my $no-commas               = $num-unit.comb.grep(none /','/).join;
-        if $no-commas ~~ / ^ (\d+ '.'* \d*) \s* (\w*) $ / {
-            my $real                = $0.Str.comb.grep(/ \d | '.' /).join;
-            my $unit                = $1.Str with $1;
-            given $unit {
-                when 'K'            { return $real * K }
-                when 'M'            { return $real * M }
-                when 'G'            { return $real * G }
-                when 'T'            { return $real * T }
-                when 'P'            { return $real * P }
-                default             { return $real;    }
-            }
-        }
-    }
-
-    method bytes-to-unit (Real:D $real) {
-        given $real {
-            when $_ >= P            { return ($real / P).fmt("%.1f P"); }
-            when $_ >= T            { return ($real / T).fmt("%.1f T"); }
-            when $_ >= G            { return ($real / G).fmt("%.1f G"); }
-            when $_ >= M            { return ($real / M).fmt("%.1f M"); }
-            when $_ >= K            { return ($real / K).fmt("%.1f K"); }
-            default                 { return $real;                     }
-        }
-    }
 
     has Int $!number-of-files       = 0;
     has Int $.number-of-files-delta = 0;
@@ -56,7 +56,7 @@ class ISP-Node-Occupancy-statistics {
 
     method physical (Str :$physical) {
         return $!physical           without $physical;
-        my $real-physical           = self.to-bytes($physical).Rat;
+        my $real-physical           = to-bytes($physical).Rat;
         $!last-physical             = $real-physical unless $!last-physical >= 0.0;
         $!physical-delta            = $real-physical - $!last-physical;
         $!physical                  = $real-physical;
@@ -69,7 +69,8 @@ class ISP-Node-Occupancy-statistics {
 
     method logical (Str :$logical) {
         return $!logical            without $logical;
-        my $real-logical            = self.to-bytes($logical).Rat;
+        my $real-logical            = to-bytes($logical).Rat;
+        $!last-logical              = $real-logical if $!last-logical < 0.0;
         $!last-logical              = $real-logical unless $!last-logical >= 0.0;
         $!logical-delta             = $real-logical - $!last-logical;
         $!logical                   = $real-logical;
@@ -93,14 +94,14 @@ class Reporter does ISP::Server::Reporter {
 
         my $row;
         for @sessions -> $session {
-            $node-name          = Nil;  $node-name          = $session{'Node Name'}.Str                     if $session{'Node Name'};
-            $type               = Nil;  $type               = $session{'Type'}.Str                          if $session{'Type'};
-            $filespace-name     = Nil;  $filespace-name     = $session{'Filespace Name'}.Str                if $session{'Filespace Name'};
-            $fsid               = Nil;  $fsid               = $session{'FSID'}.Str                          if $session{'FSID'};
-            $storage-pool-name  = Nil;  $storage-pool-name  = $session{'Storage Pool Name'}.Str             if $session{'Storage Pool Name'};
-            $number-of-files    = Nil;  $number-of-files    = $session{'Number of Files'}.Str               if $session{'Number of Files'};
-            $physical           = Nil;  $physical           = $session{'Physical Space Occupied (MB)'}.Str  if $session{'Physical Space Occupied (MB)'};
-            $logical            = Nil;  $logical            = $session{'Logical Space Occupied (MB)'}.Str   if $session{'Logical Space Occupied (MB)'};
+            $node-name          = '';   $node-name          = $session{'Node Name'}.Str                     if $session{'Node Name'};
+            $type               = '';   $type               = $session{'Type'}.Str                          if $session{'Type'};
+            $filespace-name     = '';   $filespace-name     = $session{'Filespace Name'}.Str                if $session{'Filespace Name'};
+            $fsid               = '';   $fsid               = $session{'FSID'}.Str                          if $session{'FSID'};
+            $storage-pool-name  = '';   $storage-pool-name  = $session{'Storage Pool Name'}.Str             if $session{'Storage Pool Name'};
+            $number-of-files    = '';   $number-of-files    = $session{'Number of Files'}.Str               if $session{'Number of Files'};
+            $physical           = '';   $physical           = $session{'Physical Space Occupied (MB)'}.Str  if $session{'Physical Space Occupied (MB)'};
+            $logical            = '';   $logical            = $session{'Logical Space Occupied (MB)'}.Str   if $session{'Logical Space Occupied (MB)'};
             %!statistics{$node-name}{$filespace-name}       = ISP-Node-Occupancy-statistics.new   unless %!statistics{$node-name}{$filespace-name}:exists;
             %!statistics{$node-name}{$filespace-name}.number-of-files(:$number-of-files);
             %!statistics{$node-name}{$filespace-name}.physical(:physical($physical ~ ' M'));
@@ -114,9 +115,9 @@ class Reporter does ISP::Server::Reporter {
             $row.push:          $number-of-files;
             $row.push:          %!statistics{$node-name}{$filespace-name}.number-of-files-delta;
             $row.push:          $physical;
-            $row.push:          %!statistics{$node-name}{$filespace-name}.bytes-to-unit(%!statistics{$node-name}{$filespace-name}.physical-delta);
+            $row.push:          bytes-to-unit(%!statistics{$node-name}{$filespace-name}.physical-delta);
             $row.push:          $logical;
-            $row.push:          %!statistics{$node-name}{$filespace-name}.bytes-to-unit(%!statistics{$node-name}{$filespace-name}.logical-delta);
+            $row.push:          bytes-to-unit(%!statistics{$node-name}{$filespace-name}.logical-delta);
             self.table.add-row: $row;
         }
     }
